@@ -27,6 +27,9 @@ type
     [Test]
     /// <summary>Valida o ciclo completo de executar e desfazer.</summary>
     procedure ExecuteCanBeUndone;
+    [Test]
+    /// <summary>Garante rollback quando uma renomeação intermediária falha.</summary>
+    procedure ExecuteRollsBackAfterPartialFailure;
   end;
 
 implementation
@@ -81,6 +84,40 @@ begin
   Assert.IsTrue(TFile.Exists(TPath.Combine(FFolder, 'novo-arquivo.txt')));
   Undo(LogFile);
   Assert.IsTrue(TFile.Exists(TPath.Combine(FFolder, 'arquivo.txt')));
+  Assert.IsFalse(TFile.Exists(LogFile));
+end;
+
+procedure TRenameControllerTests.ExecuteRollsBackAfterPartialFailure;
+var
+  Items: TArray<TRenameItem>;
+  OriginalFile, FirstTarget, LogFile: string;
+  RaisedException: Boolean;
+begin
+  OriginalFile := TPath.Combine(FFolder, 'primeiro.txt');
+  FirstTarget := TPath.Combine(FFolder, 'renomeado.txt');
+  LogFile := TPath.Combine(FFolder, '.organizador-undo.tsv');
+  TFile.WriteAllText(OriginalFile, 'conteúdo');
+
+  SetLength(Items, 2);
+  Items[0].Source := OriginalFile;
+  Items[0].Target := FirstTarget;
+  Items[0].ErrorText := '';
+  Items[1].Source := TPath.Combine(FFolder, 'inexistente.txt');
+  Items[1].Target := TPath.Combine(FFolder, 'destino.txt');
+  Items[1].ErrorText := '';
+
+  RaisedException := False;
+  try
+    Execute(Items, LogFile);
+  except
+    on E: Exception do
+      RaisedException := True;
+  end;
+
+  Assert.IsTrue(RaisedException, 'A falha intermediária deveria ser propagada.');
+  Assert.IsTrue(TFile.Exists(OriginalFile),
+    'O primeiro arquivo deveria ter sido restaurado.');
+  Assert.IsFalse(TFile.Exists(FirstTarget));
   Assert.IsFalse(TFile.Exists(LogFile));
 end;
 

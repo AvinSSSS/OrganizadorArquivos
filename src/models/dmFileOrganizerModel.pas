@@ -1,4 +1,4 @@
-unit dmFileOrganizerModel;
+﻿unit dmFileOrganizerModel;
 
 interface
 
@@ -134,7 +134,7 @@ end;
 
 procedure TdmFileOrganizer.DeleteItem(const Index: Integer);
 begin
-  uRenameController.DeleteFile(FilePath(Index));
+  uRenameController.RecycleFile(FilePath(Index));
   BuildPreview(FRequest);
 end;
 

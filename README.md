@@ -13,7 +13,8 @@ em lote com validação prévia e opção de desfazer a última renomeação.
 - Numeração sequencial em ordem alfabética.
 - Prévia obrigatória antes da renomeação.
 - Validação de nomes reservados, caracteres inválidos e destinos duplicados.
-- Confirmação antes de renomear ou excluir permanentemente.
+- Confirmação antes de renomear ou mover um arquivo para a Lixeira.
+- Rollback automático se uma renomeação em lote falhar parcialmente.
 - Registro local para desfazer a última renomeação.
 - Visualização interna de arquivos de texto e imagens.
 - Abertura de outros formatos pelo aplicativo padrão do Windows.
@@ -38,7 +39,8 @@ OrganizadorArquivos/
 │       └── frmFileViewer.dfm
 ├── tests/
 │   ├── uRenameControllerTests.dpr
-│   └── uRenameControllerTests.pas
+│   ├── uRenameControllerTests.pas
+│   └── dmFileOrganizerModelTests.pas
 ├── FileOrganizer.dpr
 ├── FileOrganizer.dproj
 ├── FileOrganizer.rc
@@ -82,12 +84,15 @@ A suíte cobre:
 - ordenação alfabética e numeração;
 - exclusão do arquivo de log da prévia;
 - bloqueio de nomes inválidos;
-- execução e desfazer da renomeação.
+- execução e desfazer da renomeação;
+- rollback após falha parcial;
+- validação das regras no DataModule;
+- índices inválidos e atualização após enviar um arquivo à Lixeira.
 
 ## Segurança
 
 - O aplicativo não percorre subpastas.
-- A exclusão de arquivo é permanente e sempre exige confirmação.
+- A exclusão exige confirmação e envia o arquivo para a Lixeira do Windows.
 - O desfazer cobre apenas a última operação registrada.
 - O arquivo `.organizador-undo.tsv` é temporário e ignorado pelo Git.
 - Faça backup antes de operar sobre arquivos importantes.

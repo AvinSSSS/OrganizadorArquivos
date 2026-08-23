@@ -36,14 +36,15 @@ procedure Execute(const Items: TArray<TRenameItem>; const LogFile: string);
 /// <param name="LogFile">Caminho do registro que será consumido.</param>
 procedure Undo(const LogFile: string);
 
-/// <summary>Exclui permanentemente um arquivo após validar o caminho.</summary>
+/// <summary>Move um arquivo para a Lixeira do Windows.</summary>
 /// <param name="FileName">Caminho absoluto do arquivo.</param>
-procedure DeleteFile(const FileName: string);
+procedure RecycleFile(const FileName: string);
 
 implementation
 
 uses
-  System.Classes, System.Generics.Defaults, System.NetEncoding;
+  System.Classes, System.Generics.Defaults, System.NetEncoding,
+  Winapi.Windows, Winapi.ShellAPI;
 
 const
   UndoFileName = '.organizador-undo.tsv';
@@ -149,34 +150,80 @@ procedure Execute(const Items: TArray<TRenameItem>; const LogFile: string);
 var
   Item: TRenameItem;
   Log: TStringList;
+  MovedItems: TList<TRenameItem>;
   MovedCount: Integer;
+  I: Integer;
+  RollbackError: string;
 begin
   Log := TStringList.Create;
+  MovedItems := TList<TRenameItem>.Create;
   try
-    MovedCount := 0;
-    for Item in Items do
-      if Item.ErrorText = '' then
+    try
+      MovedCount := 0;
+      for Item in Items do
+        if Item.ErrorText = '' then
+        begin
+          TFile.Move(Item.Source, Item.Target);
+          MovedItems.Add(Item);
+          Log.Add(EncodePath(Item.Target) + #9 + EncodePath(Item.Source));
+          Inc(MovedCount);
+        end;
+      if MovedCount = 0 then
+        raise Exception.Create('Nenhum arquivo está pronto para renomear.');
+
+      { O log só é persistido depois que todas as alterações foram concluídas. }
+      Log.SaveToFile(LogFile, TEncoding.UTF8);
+    except
+      on E: Exception do
       begin
-        TFile.Move(Item.Source, Item.Target);
-        Log.Add(EncodePath(Item.Target) + #9 + EncodePath(Item.Source));
-        Log.SaveToFile(LogFile, TEncoding.UTF8);
-        Inc(MovedCount);
+        RollbackError := '';
+        for I := MovedItems.Count - 1 downto 0 do
+          try
+            Item := MovedItems[I];
+            if TFile.Exists(Item.Target) and not TFile.Exists(Item.Source) then
+              TFile.Move(Item.Target, Item.Source);
+          except
+            on RollbackException: Exception do
+              if RollbackError = '' then
+                RollbackError := RollbackException.Message;
+          end;
+
+        if RollbackError <> '' then
+          raise Exception.CreateFmt(
+            '%s A reversão automática também falhou: %s',
+            [E.Message, RollbackError]);
+        raise;
       end;
-    if MovedCount = 0 then
-      raise Exception.Create('Nenhum arquivo está pronto para renomear.');
+    end;
   finally
+    MovedItems.Free;
     Log.Free;
   end;
 end;
 
-procedure DeleteFile(const FileName: string);
+procedure RecycleFile(const FileName: string);
+var
+  Operation: TSHFileOpStruct;
+  NullTerminatedPath: string;
+  ErrorCode: Integer;
 begin
   if Trim(FileName) = '' then
     raise EArgumentException.Create('O arquivo não foi informado.');
   if not TFile.Exists(FileName) then
     raise EFileNotFoundException.CreateFmt('O arquivo "%s" não existe.',
       [TPath.GetFileName(FileName)]);
-  TFile.Delete(FileName);
+
+  NullTerminatedPath := FileName + #0#0;
+  FillChar(Operation, SizeOf(Operation), 0);
+  Operation.wFunc := FO_DELETE;
+  Operation.pFrom := PChar(NullTerminatedPath);
+  Operation.fFlags := FOF_ALLOWUNDO or FOF_NOCONFIRMATION or FOF_SILENT or
+    FOF_NOERRORUI;
+  ErrorCode := SHFileOperation(Operation);
+  if (ErrorCode <> 0) or Operation.fAnyOperationsAborted then
+    raise Exception.CreateFmt(
+      'O Windows não conseguiu mover o arquivo para a Lixeira (código %d).',
+      [ErrorCode]);
 end;
 
 procedure Undo(const LogFile: string);

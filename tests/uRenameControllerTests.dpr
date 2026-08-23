@@ -7,7 +7,9 @@ uses
   DUnitX.Loggers.Console,
   DUnitX.TestFramework,
   uRenameControllerTests in 'uRenameControllerTests.pas',
-  uRenameController in '..\src\controllers\uRenameController.pas';
+  dmFileOrganizerModelTests in 'dmFileOrganizerModelTests.pas',
+  uRenameController in '..\src\controllers\uRenameController.pas',
+  dmFileOrganizerModel in '..\src\models\dmFileOrganizerModel.pas' {dmFileOrganizer: TDataModule};
 
 var
   Runner: ITestRunner;
