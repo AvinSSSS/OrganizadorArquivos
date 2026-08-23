@@ -1,14 +1,185 @@
 unit RenameEngine;
+
 interface
-uses System.SysUtils, System.IOUtils, System.Generics.Collections;
-type TRenameItem = record Source, Target, ErrorText: string; end;
-function Preview(const Folder, Prefix, Suffix, FindText, ReplaceText: string; AddNumber: Boolean): TArray<TRenameItem>;
+
+uses
+  System.SysUtils, System.IOUtils, System.Generics.Collections;
+
+type
+  TRenameItem = record
+    Source, Target, ErrorText: string;
+  end;
+
+function Preview(const Folder, Prefix, Suffix, FindText, ReplaceText: string;
+  AddNumber: Boolean): TArray<TRenameItem>;
 procedure Execute(const Items: TArray<TRenameItem>; const LogFile: string);
 procedure Undo(const LogFile: string);
+
 implementation
-function Preview(const Folder, Prefix, Suffix, FindText, ReplaceText: string; AddNumber: Boolean): TArray<TRenameItem>;
-var Files: TArray<string>; I: Integer; Base, Ext, NewBase: string; Seen: TDictionary<string,Boolean>;
-begin Files:=TDirectory.GetFiles(Folder); SetLength(Result,Length(Files)); Seen:=TDictionary<string,Boolean>.Create; try for I:=0 to High(Files) do begin Base:=TPath.GetFileNameWithoutExtension(Files[I]); Ext:=TPath.GetExtension(Files[I]); NewBase:=Base; if FindText<>'' then NewBase:=StringReplace(NewBase,FindText,ReplaceText,[rfReplaceAll,rfIgnoreCase]); if AddNumber then NewBase:=Format('%.4d_%s',[I+1,NewBase]); Result[I].Source:=Files[I]; Result[I].Target:=TPath.Combine(Folder,Prefix+NewBase+Suffix+Ext); if SameText(Result[I].Source,Result[I].Target) then Result[I].ErrorText:='Sem alteração' else if TFile.Exists(Result[I].Target) or Seen.ContainsKey(LowerCase(Result[I].Target)) then Result[I].ErrorText:='Conflito de nome' else Seen.Add(LowerCase(Result[I].Target),True); end; finally Seen.Free; end; end;
-procedure Execute(const Items: TArray<TRenameItem>; const LogFile: string); var Item: TRenameItem; Log: TStringList; begin Log:=TStringList.Create; try for Item in Items do if Item.ErrorText='' then begin TFile.Move(Item.Source,Item.Target); Log.Add(Item.Target+#9+Item.Source); end; Log.SaveToFile(LogFile,TEncoding.UTF8); except on E: Exception do begin Log.SaveToFile(LogFile,TEncoding.UTF8); raise; end; end; Log.Free; end;
-procedure Undo(const LogFile: string); var Lines:TStringList; I,P:Integer; Current,Original:string; begin if not TFile.Exists(LogFile) then raise Exception.Create('Nenhuma operação para desfazer.'); Lines:=TStringList.Create; try Lines.LoadFromFile(LogFile,TEncoding.UTF8); for I:=Lines.Count-1 downto 0 do begin P:=Pos(#9,Lines[I]); Current:=Copy(Lines[I],1,P-1); Original:=Copy(Lines[I],P+1,MaxInt); if TFile.Exists(Current) and not TFile.Exists(Original) then TFile.Move(Current,Original); end; TFile.Delete(LogFile); finally Lines.Free; end; end;
+
+uses
+  System.Classes, System.Generics.Defaults, System.NetEncoding;
+
+const
+  UndoFileName = '.organizador-undo.tsv';
+
+function HasInvalidFileName(const Value: string): Boolean;
+const
+  InvalidChars: array[0..8] of Char = ('<', '>', ':', '"', '/', '\', '|', '?', '*');
+  ReservedNames: array[0..21] of string = (
+    'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
+    'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4',
+    'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9');
+var
+  C, Invalid: Char;
+  Reserved, Stem: string;
+begin
+  if Value = '' then Exit(True);
+  Result := Value[Length(Value)] in [' ', '.'];
+  if Result then Exit;
+  for C in Value do
+  begin
+    if Ord(C) < 32 then Exit(True);
+    for Invalid in InvalidChars do
+      if C = Invalid then Exit(True);
+  end;
+  Stem := UpperCase(TPath.GetFileNameWithoutExtension(Value));
+  for Reserved in ReservedNames do
+    if Stem = Reserved then Exit(True);
+end;
+
+function Preview(const Folder, Prefix, Suffix, FindText, ReplaceText: string;
+  AddNumber: Boolean): TArray<TRenameItem>;
+var
+  Files: TArray<string>;
+  Items: TList<TRenameItem>;
+  Seen: TDictionary<string, Boolean>;
+  Item: TRenameItem;
+  FileName, BaseName, Extension, NewBase, NewName, Key: string;
+  I: Integer;
+begin
+  if not TDirectory.Exists(Folder) then
+    raise EDirectoryNotFoundException.Create('A pasta selecionada não existe.');
+  Files := TDirectory.GetFiles(Folder);
+  TArray.Sort<string>(Files, TComparer<string>.Construct(
+    function(const Left, Right: string): Integer
+    begin
+      Result := CompareText(Left, Right);
+    end));
+  Items := TList<TRenameItem>.Create;
+  Seen := TDictionary<string, Boolean>.Create;
+  try
+    for I := 0 to High(Files) do
+    begin
+      FileName := TPath.GetFileName(Files[I]);
+      if SameText(FileName, UndoFileName) then Continue;
+      BaseName := TPath.GetFileNameWithoutExtension(Files[I]);
+      Extension := TPath.GetExtension(Files[I]);
+      NewBase := BaseName;
+      if FindText <> '' then
+        NewBase := StringReplace(NewBase, FindText, ReplaceText,
+          [rfReplaceAll, rfIgnoreCase]);
+      if AddNumber then
+        NewBase := Format('%.4d_%s', [Items.Count + 1, NewBase]);
+      NewName := Prefix + NewBase + Suffix + Extension;
+      Item.Source := Files[I];
+      Item.Target := TPath.Combine(Folder, NewName);
+      Item.ErrorText := '';
+      Key := LowerCase(Item.Target);
+      if SameText(Item.Source, Item.Target) then
+        Item.ErrorText := 'Sem alteração'
+      else if HasInvalidFileName(NewName) then
+        Item.ErrorText := 'Nome inválido no Windows'
+      else if Length(NewName) > 255 then
+        Item.ErrorText := 'Nome maior que 255 caracteres'
+      else if Seen.ContainsKey(Key) then
+        Item.ErrorText := 'Destino duplicado'
+      else if TFile.Exists(Item.Target) then
+        Item.ErrorText := 'Destino já existe'
+      else
+        Seen.Add(Key, True);
+      Items.Add(Item);
+    end;
+    Result := Items.ToArray;
+  finally
+    Seen.Free;
+    Items.Free;
+  end;
+end;
+
+function EncodePath(const Value: string): string;
+begin
+  Result := TNetEncoding.Base64.Encode(Value);
+end;
+
+function DecodePath(const Value: string): string;
+begin
+  Result := TNetEncoding.Base64.Decode(Value);
+end;
+
+procedure Execute(const Items: TArray<TRenameItem>; const LogFile: string);
+var
+  Item: TRenameItem;
+  Log: TStringList;
+  MovedCount: Integer;
+begin
+  Log := TStringList.Create;
+  try
+    MovedCount := 0;
+    for Item in Items do
+      if Item.ErrorText = '' then
+      begin
+        TFile.Move(Item.Source, Item.Target);
+        Log.Add(EncodePath(Item.Target) + #9 + EncodePath(Item.Source));
+        Log.SaveToFile(LogFile, TEncoding.UTF8);
+        Inc(MovedCount);
+      end;
+    if MovedCount = 0 then
+      raise Exception.Create('Nenhum arquivo está pronto para renomear.');
+  finally
+    Log.Free;
+  end;
+end;
+
+procedure Undo(const LogFile: string);
+var
+  Lines: TStringList;
+  CurrentPaths, OriginalPaths: TArray<string>;
+  I, Separator: Integer;
+begin
+  if not TFile.Exists(LogFile) then
+    raise Exception.Create('Nenhuma operação para desfazer.');
+  Lines := TStringList.Create;
+  try
+    Lines.LoadFromFile(LogFile, TEncoding.UTF8);
+    if Lines.Count = 0 then
+      raise Exception.Create('O registro de desfazer está vazio.');
+    SetLength(CurrentPaths, Lines.Count);
+    SetLength(OriginalPaths, Lines.Count);
+    for I := 0 to Lines.Count - 1 do
+    begin
+      Separator := Pos(#9, Lines[I]);
+      if Separator = 0 then
+        raise Exception.Create('O registro de desfazer está danificado.');
+      try
+        CurrentPaths[I] := DecodePath(Copy(Lines[I], 1, Separator - 1));
+        OriginalPaths[I] := DecodePath(Copy(Lines[I], Separator + 1, MaxInt));
+      except
+        raise Exception.Create('O registro de desfazer está danificado.');
+      end;
+      if not TFile.Exists(CurrentPaths[I]) then
+        raise Exception.CreateFmt('Não foi possível localizar "%s".',
+          [TPath.GetFileName(CurrentPaths[I])]);
+      if TFile.Exists(OriginalPaths[I]) then
+        raise Exception.CreateFmt('O nome original "%s" já está em uso.',
+          [TPath.GetFileName(OriginalPaths[I])]);
+    end;
+    for I := Lines.Count - 1 downto 0 do
+      TFile.Move(CurrentPaths[I], OriginalPaths[I]);
+    TFile.Delete(LogFile);
+  finally
+    Lines.Free;
+  end;
+end;
+
 end.

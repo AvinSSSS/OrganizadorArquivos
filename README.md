@@ -10,16 +10,20 @@ Utilitário Windows para renomear muitos arquivos com segurança, permitindo con
 - Prefixo e sufixo personalizados.
 - Busca e substituição de texto sem diferenciar maiúsculas e minúsculas.
 - Numeração sequencial com quatro dígitos.
+- Ordem alfabética determinística antes da numeração.
 - Pré-visualização obrigatória de nome original e nome final.
-- Detecção de destinos duplicados ou já existentes.
+- Detecção de nomes inválidos, destinos duplicados ou já existentes.
 - Confirmação antes da execução.
-- Log local e desfazer da última operação.
+- Log local resistente a caracteres especiais e desfazer validado da última operação.
+- Resumo de arquivos prontos e ignorados antes da confirmação.
 
 ## 🛠️ Arquitetura
 
 - `RenameEngine.pas`: cria a prévia, valida conflitos, executa e desfaz.
 - `MainForm.pas`: interface VCL construída em código.
+- `FileOrganizer.dproj`: configurações Win32/Win64, Debug/Release e DPI do projeto.
 - `.organizador-undo.tsv`: registro temporário criado na pasta processada.
+- `tests/`: testes DUnitX do motor de prévia, execução e desfazer.
 
 ## 🚀 Como executar
 
@@ -28,6 +32,15 @@ Utilitário Windows para renomear muitos arquivos com segurança, permitindo con
 3. Escolha uma pasta descartável para o primeiro teste.
 4. Defina regras, clique em **Gerar prévia** e confira todos os conflitos.
 5. Confirme a operação somente depois da revisão.
+
+## 🧪 Testes automatizados
+
+Abra `tests/RenameEngineTests.dpr` no Delphi e execute o projeto de console. A
+suíte valida ordenação/numeração, exclusão segura do arquivo de log, bloqueio de
+nomes inválidos e o ciclo completo de renomear/desfazer.
+
+> A edição do Delphi disponível neste ambiente não permite compilação pelo
+> `dcc32`; a aplicação e os testes devem ser compilados pelo IDE.
 
 ## 🧪 Cenários recomendados de teste
 
@@ -39,7 +52,10 @@ Utilitário Windows para renomear muitos arquivos com segurança, permitindo con
 
 ## ⚠️ Segurança
 
-Faça backup antes de processar arquivos importantes. O desfazer cobre apenas a última operação registrada e depende de os arquivos não terem sido movidos ou alterados depois da renomeação.
+O aplicativo trabalha somente na pasta selecionada, não percorre subpastas e não
+envia dados pela rede. Faça backup antes de processar arquivos importantes. O
+desfazer cobre apenas a última operação registrada e é bloqueado se algum nome
+original ou renomeado tiver sido ocupado, movido ou removido depois da operação.
 
 ---
 

@@ -4,3 +4,7 @@ Win64/
 *.exe
 *.local
 *.identcache
+*.dproj.local
+__history/
+.organizador-undo.tsv
+FileOrganizer.res
