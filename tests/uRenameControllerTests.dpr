@@ -1,4 +1,4 @@
-program RenameEngineTests;
+program FileOrganizerControllerTests;
 
 {$APPTYPE CONSOLE}
 
@@ -6,8 +6,8 @@ uses
   System.SysUtils,
   DUnitX.Loggers.Console,
   DUnitX.TestFramework,
-  RenameEngineTestsUnit in 'RenameEngineTestsUnit.pas',
-  RenameEngine in '..\RenameEngine.pas';
+  uRenameControllerTests in 'uRenameControllerTests.pas',
+  uRenameController in '..\src\controllers\uRenameController.pas';
 
 var
   Runner: ITestRunner;

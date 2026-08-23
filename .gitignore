@@ -1,10 +1,39 @@
+# Saídas de compilação do Delphi
 Win32/
 Win64/
+Debug/
+Release/
 *.dcu
 *.exe
+*.dll
+*.bpl
+*.dcp
+*.map
+*.rsm
+*.tds
+*.drc
+*.stat
+
+# Arquivos locais do Delphi/RAD Studio
 *.local
 *.identcache
 *.dproj.local
+*.groupproj.local
+*.otares
 __history/
+ModelSupport_*/
+
+# Backups e temporários de editores
+*.bak
+*.tmp
+*.~*
+*.__recovery
+.vs/
+.idea/
+
+# Arquivos gerados pelo Windows
+Thumbs.db
+Desktop.ini
+
+# Estado temporário criado pelo aplicativo
 .organizador-undo.tsv
-FileOrganizer.res

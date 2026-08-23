@@ -1,4 +1,4 @@
-unit RenameEngineTestsUnit;
+unit uRenameControllerTests;
 
 interface
 
@@ -7,41 +7,47 @@ uses
 
 type
   [TestFixture]
-  TRenameEngineTests = class
+  /// <summary>Testes de regressão do controller de renomeação.</summary>
+  TRenameControllerTests = class
   private
     FFolder: string;
   public
     [Setup]
+    /// <summary>Cria uma pasta temporária isolada para cada teste.</summary>
     procedure Setup;
     [TearDown]
+    /// <summary>Remove a pasta temporária e seus arquivos.</summary>
     procedure TearDown;
     [Test]
+    /// <summary>Valida ordenação, numeração e exclusão do log da prévia.</summary>
     procedure PreviewIsAlphabeticalAndDoesNotIncludeUndoLog;
     [Test]
+    /// <summary>Garante o bloqueio de nomes inválidos no Windows.</summary>
     procedure InvalidWindowsNameIsBlocked;
     [Test]
+    /// <summary>Valida o ciclo completo de executar e desfazer.</summary>
     procedure ExecuteCanBeUndone;
   end;
 
 implementation
 
 uses
-  System.SysUtils, System.IOUtils, RenameEngine;
+  System.SysUtils, System.IOUtils, uRenameController;
 
-procedure TRenameEngineTests.Setup;
+procedure TRenameControllerTests.Setup;
 begin
   FFolder := TPath.Combine(TPath.GetTempPath,
     'organizador-' + TGUID.NewGuid.ToString.Replace('{', '').Replace('}', ''));
   TDirectory.CreateDirectory(FFolder);
 end;
 
-procedure TRenameEngineTests.TearDown;
+procedure TRenameControllerTests.TearDown;
 begin
   if TDirectory.Exists(FFolder) then
     TDirectory.Delete(FFolder, True);
 end;
 
-procedure TRenameEngineTests.PreviewIsAlphabeticalAndDoesNotIncludeUndoLog;
+procedure TRenameControllerTests.PreviewIsAlphabeticalAndDoesNotIncludeUndoLog;
 var
   Items: TArray<TRenameItem>;
 begin
@@ -54,7 +60,7 @@ begin
   Assert.AreEqual('0002_zeta.txt', TPath.GetFileName(Items[1].Target));
 end;
 
-procedure TRenameEngineTests.InvalidWindowsNameIsBlocked;
+procedure TRenameControllerTests.InvalidWindowsNameIsBlocked;
 var
   Items: TArray<TRenameItem>;
 begin
@@ -63,7 +69,7 @@ begin
   Assert.AreEqual('Nome inválido no Windows', Items[0].ErrorText);
 end;
 
-procedure TRenameEngineTests.ExecuteCanBeUndone;
+procedure TRenameControllerTests.ExecuteCanBeUndone;
 var
   Items: TArray<TRenameItem>;
   LogFile: string;
@@ -79,6 +85,6 @@ begin
 end;
 
 initialization
-  TDUnitX.RegisterTestFixture(TRenameEngineTests);
+  TDUnitX.RegisterTestFixture(TRenameControllerTests);
 
 end.

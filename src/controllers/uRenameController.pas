@@ -1,4 +1,4 @@
-unit RenameEngine;
+unit uRenameController;
 
 interface
 
@@ -6,14 +6,39 @@ uses
   System.SysUtils, System.IOUtils, System.Generics.Collections;
 
 type
+  /// <summary>Representa uma alteração de nome calculada pelo controller.</summary>
   TRenameItem = record
-    Source, Target, ErrorText: string;
+    /// <summary>Caminho absoluto atual do arquivo.</summary>
+    Source: string;
+    /// <summary>Caminho absoluto calculado para o novo nome.</summary>
+    Target: string;
+    /// <summary>Motivo que impede a operação; vazio quando o item é válido.</summary>
+    ErrorText: string;
   end;
 
+/// <summary>Calcula e valida as alterações sem modificar os arquivos.</summary>
+/// <param name="Folder">Pasta cujos arquivos serão processados.</param>
+/// <param name="Prefix">Texto acrescentado antes do nome.</param>
+/// <param name="Suffix">Texto acrescentado depois do nome.</param>
+/// <param name="FindText">Texto que deve ser localizado.</param>
+/// <param name="ReplaceText">Texto usado na substituição.</param>
+/// <param name="AddNumber">Indica se os nomes receberão numeração sequencial.</param>
+/// <returns>Itens ordenados alfabeticamente com destino e validação.</returns>
 function Preview(const Folder, Prefix, Suffix, FindText, ReplaceText: string;
   AddNumber: Boolean): TArray<TRenameItem>;
+
+/// <summary>Executa os itens válidos e grava o registro de desfazer.</summary>
+/// <param name="Items">Itens anteriormente produzidos por Preview.</param>
+/// <param name="LogFile">Caminho do registro da operação.</param>
 procedure Execute(const Items: TArray<TRenameItem>; const LogFile: string);
+
+/// <summary>Restaura os nomes usando o registro da última operação.</summary>
+/// <param name="LogFile">Caminho do registro que será consumido.</param>
 procedure Undo(const LogFile: string);
+
+/// <summary>Exclui permanentemente um arquivo após validar o caminho.</summary>
+/// <param name="FileName">Caminho absoluto do arquivo.</param>
+procedure DeleteFile(const FileName: string);
 
 implementation
 
@@ -23,6 +48,7 @@ uses
 const
   UndoFileName = '.organizador-undo.tsv';
 
+/// <summary>Verifica caracteres, sufixos e nomes reservados do Windows.</summary>
 function HasInvalidFileName(const Value: string): Boolean;
 const
   InvalidChars: array[0..8] of Char = ('<', '>', ':', '"', '/', '\', '|', '?', '*');
@@ -107,11 +133,13 @@ begin
   end;
 end;
 
+/// <summary>Codifica um caminho para armazenamento seguro no log TSV.</summary>
 function EncodePath(const Value: string): string;
 begin
   Result := TNetEncoding.Base64.Encode(Value);
 end;
 
+/// <summary>Decodifica um caminho previamente armazenado no log TSV.</summary>
 function DecodePath(const Value: string): string;
 begin
   Result := TNetEncoding.Base64.Decode(Value);
@@ -139,6 +167,16 @@ begin
   finally
     Log.Free;
   end;
+end;
+
+procedure DeleteFile(const FileName: string);
+begin
+  if Trim(FileName) = '' then
+    raise EArgumentException.Create('O arquivo não foi informado.');
+  if not TFile.Exists(FileName) then
+    raise EFileNotFoundException.CreateFmt('O arquivo "%s" não existe.',
+      [TPath.GetFileName(FileName)]);
+  TFile.Delete(FileName);
 end;
 
 procedure Undo(const LogFile: string);

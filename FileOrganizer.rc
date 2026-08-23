@@ -1,0 +1,30 @@
+#define VER_FILEVERSION 1,1,0,0
+#define VER_PRODUCTVERSION 1,1,0,0
+
+1 VERSIONINFO
+FILEVERSION VER_FILEVERSION
+PRODUCTVERSION VER_PRODUCTVERSION
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "041604B0"
+    BEGIN
+      VALUE "CompanyName", ""
+      VALUE "FileDescription", "Organizador de Arquivos"
+      VALUE "FileVersion", "1.1.0.0"
+      VALUE "InternalName", "FileOrganizer"
+      VALUE "OriginalFilename", "FileOrganizer.exe"
+      VALUE "ProductName", "Organizador de Arquivos"
+      VALUE "ProductVersion", "1.1.0.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0416, 1200
+  END
+END

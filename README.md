@@ -1,64 +1,98 @@
-# 🗂️ Organizador de Arquivos em Lote
+# Organizador de Arquivos
 
 [![Delphi](https://img.shields.io/badge/Delphi-VCL-EE1F35)](https://www.embarcadero.com/products/delphi)
 [![Platform](https://img.shields.io/badge/plataforma-Windows-0078D6?logo=windows)](#)
 
-Utilitário Windows para renomear muitos arquivos com segurança, permitindo conferir o resultado antes de alterar qualquer nome.
+Aplicativo Windows em Delphi VCL para visualizar, renomear e excluir arquivos
+em lote com validação prévia e opção de desfazer a última renomeação.
 
-## ✨ Funcionalidades
+## Funcionalidades
 
 - Prefixo e sufixo personalizados.
-- Busca e substituição de texto sem diferenciar maiúsculas e minúsculas.
-- Numeração sequencial com quatro dígitos.
-- Ordem alfabética determinística antes da numeração.
-- Pré-visualização obrigatória de nome original e nome final.
-- Detecção de nomes inválidos, destinos duplicados ou já existentes.
-- Confirmação antes da execução.
-- Log local resistente a caracteres especiais e desfazer validado da última operação.
-- Resumo de arquivos prontos e ignorados antes da confirmação.
+- Busca e substituição sem diferenciar maiúsculas e minúsculas.
+- Numeração sequencial em ordem alfabética.
+- Prévia obrigatória antes da renomeação.
+- Validação de nomes reservados, caracteres inválidos e destinos duplicados.
+- Confirmação antes de renomear ou excluir permanentemente.
+- Registro local para desfazer a última renomeação.
+- Visualização interna de arquivos de texto e imagens.
+- Abertura de outros formatos pelo aplicativo padrão do Windows.
+- Contadores de arquivos prontos e ignorados.
 
-## 🛠️ Arquitetura
+## Arquitetura
 
-- `RenameEngine.pas`: cria a prévia, valida conflitos, executa e desfaz.
-- `MainForm.pas`: interface VCL construída em código.
-- `FileOrganizer.dproj`: configurações Win32/Win64, Debug/Release e DPI do projeto.
-- `.organizador-undo.tsv`: registro temporário criado na pasta processada.
-- `tests/`: testes DUnitX do motor de prévia, execução e desfazer.
+O projeto segue uma separação MVC adaptada ao Delphi VCL:
 
-## 🚀 Como executar
+```text
+OrganizadorArquivos/
+├── src/
+│   ├── controllers/
+│   │   └── uRenameController.pas
+│   ├── models/
+│   │   ├── dmFileOrganizerModel.pas
+│   │   └── dmFileOrganizerModel.dfm
+│   └── forms/
+│       ├── frmMain.pas
+│       ├── frmMain.dfm
+│       ├── frmFileViewer.pas
+│       └── frmFileViewer.dfm
+├── tests/
+│   ├── uRenameControllerTests.dpr
+│   └── uRenameControllerTests.pas
+├── FileOrganizer.dpr
+├── FileOrganizer.dproj
+├── FileOrganizer.rc
+└── FileOrganizer.RES
+```
+
+- **Controller:** calcula a prévia, valida nomes, renomeia, desfaz e exclui.
+- **Model/DataModule:** mantém a solicitação e adapta os dados para as Views.
+- **Views:** exibem a tela principal e o visualizador interno de arquivos.
+
+As units e seus métodos possuem documentação XMLDoc para navegação e ajuda de
+código dentro do Delphi.
+
+## Formatos visualizados internamente
+
+Imagens: BMP, JPG, JPEG, PNG, GIF, ICO, WMF e EMF.
+
+Textos: TXT, LOG, CSV, TSV, JSON, XML, INI, CFG, fontes Delphi, Markdown, SQL,
+scripts, HTML, CSS, JavaScript, TypeScript e YAML.
+
+Os demais formatos são abertos por meio da associação padrão do Windows. Uma
+mensagem é apresentada quando não existe aplicativo compatível instalado.
+
+## Como executar
 
 1. Abra `FileOrganizer.dpr` no Delphi 13.
-2. Compile para Win32 ou Win64 e execute pelo IDE.
-3. Escolha uma pasta descartável para o primeiro teste.
-4. Defina regras, clique em **Gerar prévia** e confira todos os conflitos.
-5. Confirme a operação somente depois da revisão.
+2. Escolha Win32 ou Win64.
+3. Execute **Project > Build All**.
+4. Inicie o aplicativo pelo IDE.
+5. Selecione uma pasta e informe pelo menos uma regra de renomeação.
+6. Gere e revise a prévia antes de confirmar.
 
-## 🧪 Testes automatizados
+O projeto mantém `{$R *.res}` no DPR e utiliza DFM para o formulário principal,
+o visualizador e o DataModule.
 
-Abra `tests/RenameEngineTests.dpr` no Delphi e execute o projeto de console. A
-suíte valida ordenação/numeração, exclusão segura do arquivo de log, bloqueio de
-nomes inválidos e o ciclo completo de renomear/desfazer.
+## Testes
 
-> A edição do Delphi disponível neste ambiente não permite compilação pelo
-> `dcc32`; a aplicação e os testes devem ser compilados pelo IDE.
+Abra `tests/uRenameControllerTests.dpr` no Delphi e execute o projeto DUnitX.
+A suíte cobre:
 
-## 🧪 Cenários recomendados de teste
+- ordenação alfabética e numeração;
+- exclusão do arquivo de log da prévia;
+- bloqueio de nomes inválidos;
+- execução e desfazer da renomeação.
 
-- Dois arquivos produzindo o mesmo destino.
-- Destino que já existe na pasta.
-- Acentos, espaços, nomes longos e extensões diferentes.
-- Interrupção parcial e uso do log para desfazer.
-- Pastas com centenas ou milhares de arquivos.
+## Segurança
 
-## ⚠️ Segurança
+- O aplicativo não percorre subpastas.
+- A exclusão de arquivo é permanente e sempre exige confirmação.
+- O desfazer cobre apenas a última operação registrada.
+- O arquivo `.organizador-undo.tsv` é temporário e ignorado pelo Git.
+- Faça backup antes de operar sobre arquivos importantes.
 
-O aplicativo trabalha somente na pasta selecionada, não percorre subpastas e não
-envia dados pela rede. Faça backup antes de processar arquivos importantes. O
-desfazer cobre apenas a última operação registrada e é bloqueado se algum nome
-original ou renomeado tiver sido ocupado, movido ou removido depois da operação.
+## Observação sobre compilação
 
----
-
-## 🇬🇧 English
-
-Delphi VCL batch renamer with mandatory preview, prefix/suffix and replacement rules, numbering, conflict detection, operation logging and one-step undo.
+A edição do Delphi disponível neste ambiente não habilita compilação pelo
+`dcc32`. A aplicação e os testes devem ser compilados pelo IDE.
