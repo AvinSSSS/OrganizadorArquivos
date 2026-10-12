@@ -66,7 +66,12 @@ mensagem é apresentada quando não existe aplicativo compatível instalado.
 
 ## Como executar
 
-1. Abra `FileOrganizer.dpr` no Delphi 13.
+Diretório de trabalho: raiz do checkout (`D:/Fontes/Projetos/OrganizadorArquivos`
+no projeto principal, ou a raiz da worktree isolada). É necessário Windows com
+Delphi 13, suporte VCL e compilador da plataforma escolhida. Não há instalação
+via npm/pip nem arquivo `.env`: pasta e regras são informadas pela interface.
+
+1. Abra [FileOrganizer.dpr](FileOrganizer.dpr) no Delphi 13.
 2. Escolha Win32 ou Win64.
 3. Execute **Project > Build All**.
 4. Inicie o aplicativo pelo IDE.
@@ -74,12 +79,25 @@ mensagem é apresentada quando não existe aplicativo compatível instalado.
 6. Gere e revise a prévia antes de confirmar.
 
 O projeto mantém `{$R *.res}` no DPR e utiliza DFM para o formulário principal,
-o visualizador e o DataModule.
+o visualizador e o DataModule. Preserve esses recursos junto às units.
+O [FileOrganizer.dproj](FileOrganizer.dproj) define `Platform` (Win32 por padrão),
+`Config` (Base por padrão) e saídas em `./$(Platform)/$(Config)`.
+`BDS` e `BDSCOMMONDIR` são macros do ambiente Delphi usadas para manifesto,
+ícones e estilos VCL; não são variáveis de configuração do aplicativo.
 
 ## Testes
 
-Abra `tests/uRenameControllerTests.dpr` no Delphi e execute o projeto DUnitX.
-A suíte cobre:
+A partir da raiz do checkout, abra
+[tests/uRenameControllerTests.dpr](tests/uRenameControllerTests.dpr) no Delphi.
+As units `DUnitX.TestFramework` e `DUnitX.Loggers.Console` precisam estar
+resolvíveis no Library/Search Path da plataforma escolhida; o repositório não
+inclui o código DUnitX nem um `.dproj` de testes. Compile pelo IDE e execute o
+projeto de console. O runner usa RTTI, registra os dois fixtures e define
+`ExitCode := 1` quando há teste reprovado.
+
+Há oito métodos `[Test]`: quatro no
+[controller](tests/uRenameControllerTests.pas) e quatro no
+[DataModule](tests/dmFileOrganizerModelTests.pas). A suíte cobre:
 
 - ordenação alfabética e numeração;
 - exclusão do arquivo de log da prévia;
@@ -88,6 +106,20 @@ A suíte cobre:
 - rollback após falha parcial;
 - validação das regras no DataModule;
 - índices inválidos e atualização após enviar um arquivo à Lixeira.
+
+Os fixtures criam pastas exclusivas em `TPath.GetTempPath` com GUID e arquivos
+textuais sintéticos (`alfa.txt`, `zeta.txt`, `arquivo.txt`, `primeiro.txt`),
+e removem suas pastas no TearDown. `DeleteItemRefreshesPreview` chama a Lixeira
+real do Windows via `SHFileOperation`; não usa mock e depende do suporte da
+Lixeira no volume temporário. O arquivo reciclado não é removido pelo TearDown.
+
+Esses testes não exercitam formulários, diálogos de confirmação, visualizador,
+associações de arquivos ou falha parcial durante o desfazer. Para conferir a
+interface, use uma pasta descartável com `alfa.txt` e `zeta.txt`, gere uma prévia
+com apenas numeração e confira `0001_alfa.txt`/`0002_zeta.txt`; depois confirme,
+desfaça e confira os nomes originais. Confira separadamente a visualização TXT,
+as confirmações e a Lixeira com arquivos sintéticos. A prévia percorre e ordena
+os arquivos de forma síncrona; não há teste de desempenho de pastas grandes.
 
 ## Segurança
 
